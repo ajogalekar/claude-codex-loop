@@ -71,6 +71,26 @@ first tick, and creates a same-chat hourly schedule using the available tool.
 Routine rounds need no further confirmation. Installation itself starts nothing.
 See [setup](references/setup.md) for configuration, commands, dependencies and limits.
 
+## Each round is checked against the original goal
+
+The original goal and fixed success criteria remain the reference throughout the
+run. In each review, Codex checks:
+
+- What the latest round actually accomplished, using its response and artifacts.
+- Whether that work advances the original goal and what evidence supports each
+  original success criterion.
+- Whether earlier claims or unresolved objections need revisiting in light of
+  the latest results.
+
+Completing a milestone does not finish the overall task. The loop declares success
+only when every original success criterion is recorded as met and no blocking
+objections remain open. Earlier claims and objections stay in the record, with
+corrections, retractions and resolutions made explicit.
+
+The controller enforces the criterion bookkeeping and stopping rules. Codex still
+has to judge whether the evidence supports each conclusion; the controller cannot
+establish scientific correctness from a passing label.
+
 ## Reconciliation is part of every round
 
 - Compare the ledger with the **actual Claude conversation**, sent marker and final
