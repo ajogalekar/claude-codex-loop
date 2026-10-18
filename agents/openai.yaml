@@ -1,0 +1,3 @@
+interface:
+  display_name: "Claude–Codex Loop"
+  short_description: "Autonomous Claude work with Codex review"

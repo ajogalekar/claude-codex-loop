@@ -1,0 +1,16 @@
+{
+  "project": "/absolute/path/to/claude-project",
+  "claude_title": "Exact existing Claude Code conversation title",
+  "claude_session": "exact-observed-session-id",
+  "goal": "Produce and verify a certificate for the specified finite-case claim.",
+  "authorization": "Record the actual user instruction authorizing recurring local review and follow-up prompts in this conversation.",
+  "success_criteria": [
+    {"id": "certificate", "description": "The certificate establishes the original finite-case claim with all hypotheses and exclusions stated."},
+    {"id": "verification", "description": "Codex reproduces material exact checks from inspected code and records actual commands, results and limitations."}
+  ],
+  "watch": ["**/*.py", "**/*.md", "**/*.json", "**/*.toml", "**/*.txt", "**/*.tex", "**/*.csv", "**/*.lean"],
+  "max_rounds": 20,
+  "max_hours": 48,
+  "max_no_progress_reviews": 3,
+  "lease_minutes": 20
+}

@@ -1,0 +1,22 @@
+{
+  "round": 0,
+  "previous_review_sha256": null,
+  "artifact_sha256": "Use the actual artifact_sha256 returned by reconcile after verification",
+  "summary": "State actual deliverables and which claims survive review.",
+  "reconciliation": "Compare artifacts, previous review, claims, issues and actual Claude response. Explain corrections and retractions.",
+  "progress": false,
+  "checks": [
+    {"method": "Actual command or specific proof/code inspection", "result": "Observed result and scope", "evidence": "Absolute artifact path or primary-source URL"}
+  ],
+  "criteria": {
+    "certificate": {"status": "not_met", "evidence": "Specific missing proof obligation"},
+    "verification": {"status": "unknown", "evidence": "Specific unperformed or inconclusive check"}
+  },
+  "claims": [
+    {"id": "claim-001", "statement": "Precisely scoped claim", "status": "uncertain", "evidence": "Observed evidence and why insufficient"}
+  ],
+  "issues": [
+    {"id": "issue-001", "statement": "Concrete unresolved objection", "status": "open", "blocking": true, "evidence": "Counterexample, missing condition or failed check"}
+  ],
+  "next_milestone": "One bounded repair or investigation with a falsifiable outcome"
+}

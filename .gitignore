@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+.venv/
+.env
+.env.*
+state.json
+ledger.lock
+.state-*
+runtime/
+dist/
