@@ -36,13 +36,35 @@ ln -s "$PWD" "$HOME/.agents/skills/claude-codex-loop"
 Some clients discover `~/.codex/skills`; use your client's directory. Do not replace
 an existing skill at the destination. Claude does not need the skill installed.
 
-Then ask Codex:
+## Set the goal and stopping conditions
+
+Specify them in your starting prompt to Codex. The skill saves them in a JSON
+configuration for that run. For example:
 
 > Use $claude-codex-loop for /work/my-calculation and my existing Claude Code
-> conversation “My calculation,” session SESSION_ID. Review every hour and
-> automatically send follow-up prompts. Stop when [specific evidence-based success
-> condition]. Limit the run to 20 prompts, 48 hours, and 3 consecutive reviews
-> without verified progress. Keep the work within this local project.
+> conversation "My calculation," session SESSION_ID. Review every hour and
+> automatically send follow-up prompts. Keep the work within this local project.
+>
+> The goal is to produce a rigorous certificate for [precise claim]. Count success
+> only when Codex has checked the certificate against that claim and resolved all
+> blocking objections.
+>
+> Stop after 20 follow-up prompts, 48 hours, or 3 consecutive reviews without
+> verified progress, whichever comes first.
+
+Replace the project path, conversation/session and claim with your own. The
+[configuration template](assets/config.example.json) separates:
+
+- `goal`: what you want accomplished.
+- `success_criteria`: what evidence must establish before declaring success.
+- `max_rounds`, `max_hours`, `max_no_progress_reviews`: limits that stop an
+  unfinished run.
+
+The controller checks the numerical limits. Whether the scientific criteria are
+satisfied depends on the recorded review and verification; reaching a limit does
+not count as success. Settings are fixed when a run starts. Editing the original
+configuration file does not alter an active run; use a newly authorized run with
+new settings and preserve the old ledger.
 
 Codex records the scope and criteria, adopts the current calculation, performs a
 first tick, and creates a same-chat hourly schedule using the available tool.
