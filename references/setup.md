@@ -10,7 +10,7 @@
   Claude Code conversation in the Claude desktop app. Other Codex installations
   may not include that tool or support native desktop apps.
 - Authenticated Claude Code and Codex sessions, the local project, and Python
-  3.10+ on macOS/Linux. The controller uses only the Python standard library.
+  3.10+ on macOS, Linux or Windows. The controller uses only the Python standard library.
 - The host and app remain running and Claude is accessible at scheduled wakeups.
 
 The skill is consumed by **Codex**; Claude receives ordinary prompts and writes
@@ -25,6 +25,14 @@ For example, from the repository root:
 ```bash
 mkdir -p "$HOME/.agents/skills"
 ln -s "$PWD" "$HOME/.agents/skills/claude-codex-loop"
+```
+
+On Windows, where `ln -s` needs extra privileges, create a directory junction
+from PowerShell instead:
+
+```powershell
+New-Item -ItemType Directory -Force "$HOME\.agents\skills" | Out-Null
+New-Item -ItemType Junction -Path "$HOME\.agents\skills\claude-codex-loop" -Target $PWD
 ```
 
 Do not replace an existing destination. Some clients use `~/.codex/skills`; use
@@ -110,8 +118,8 @@ completed run. Stop neither cancels Claude work nor erases uncertain delivery.
   distributed workers. UI sends and state commits cannot be atomic together. Unknown
   delivery stops for reconciliation; there is no exactly-once transport guarantee.
 - `watch` covers selected globs. Git internals, `.venv`, `venv`, `node_modules` and
-  Python/pytest/mypy caches are excluded. Symlink directories are skipped; watched
-  file symlinks are rejected. Scans reject over 10,000 files or a watched file over
+  Python/pytest/mypy caches are excluded. Symlink and junction directories are
+  skipped; watched file symlinks are rejected. Scans reject over 10,000 files or a watched file over
   50 MB. External dependencies, remote jobs, environments and omitted files require
   explicit evidence. Hashes do not cover all possible state.
 - Snapshots are sequential reads, not filesystem transactions. Files can change
