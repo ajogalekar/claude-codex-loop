@@ -15,7 +15,7 @@ class LoopTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.base = Path(self.tmp.name)
+        self.base = Path(self.tmp.name).resolve()
         self.project = self.base / 'project'
         self.project.mkdir()
         self.artifact = self.project / 'result.txt'
@@ -322,7 +322,10 @@ class LoopTest(unittest.TestCase):
     def test_watched_symlink_cannot_read_outside_project(self):
         outside = self.base / 'outside.txt'
         outside.write_text('outside data')
-        (self.project / 'linked.txt').symlink_to(outside)
+        try:
+            (self.project / 'linked.txt').symlink_to(outside)
+        except OSError as error:  # Windows without symlink privilege
+            self.skipTest(f'cannot create symlink: {error}')
         self.call('reconcile', ok=False)
 
     def test_lock_and_state_are_stable_on_read_only_commands(self):

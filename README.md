@@ -33,6 +33,14 @@ mkdir -p "$HOME/.agents/skills"
 ln -s "$PWD" "$HOME/.agents/skills/claude-codex-loop"
 ```
 
+On Windows, where `ln -s` needs extra privileges, create a directory junction
+from PowerShell instead:
+
+```powershell
+New-Item -ItemType Directory -Force "$HOME\.agents\skills" | Out-Null
+New-Item -ItemType Junction -Path "$HOME\.agents\skills\claude-codex-loop" -Target $PWD
+```
+
 Some clients discover `~/.codex/skills`; use your client's directory. Do not replace
 an existing skill at the destination. Claude does not need the skill installed.
 
@@ -113,7 +121,7 @@ enforce dollar budgets. Its drift coverage is limited to configured watched file
 
 The desktop workflow needs a same-chat scheduling tool, supported computer use
 that can operate Claude's UI, authenticated Claude Code/Codex sessions, and Python
-3.10+ on macOS/Linux. Keep the local host and desktop app running. This repository
+3.10+ on macOS, Linux or Windows. Keep the local host and desktop app running. This repository
 does not install those tools, introduce an API runner, or bypass approvals/logins.
 Availability varies by client. [Official scheduling documentation](https://learn.chatgpt.com/codex/automations)
 describes same-chat schedules and local-host requirements.
@@ -125,8 +133,16 @@ claim continuity and stopping behavior. This is not an end-to-end demonstration
 on every desktop client. Tests never send a live Claude prompt.
 
 Local validation on 2026-10-17: **28 tests passed** on macOS with Python 3.14.6,
-and the Codex skill validator passed. GitHub Actions is configured for macOS/Linux
-with Python 3.10/3.12; those CI jobs have not yet run for this repository.
+and the Codex skill validator passed. GitHub Actions is configured for macOS, Linux and
+Windows with Python 3.10/3.12; those CI jobs have not yet run for this repository.
+
+Windows support: `control.py` locks the ledger with `msvcrt` when `fcntl` is
+unavailable, skips the directory fsync Windows does not support, skips directory
+junctions like symlinks, rejects drive-absolute watch globs and accepts `\` as a
+separator in them, and prints the heartbeat command in PowerShell form.
+`tests/test_windows.py` covers these; CI adds `windows-latest`. Locally on Windows 11
+with Python 3.11, all tests pass; the symlink test skips when the account lacks
+the symlink privilege.
 
 ```bash
 python3 -m unittest discover -s tests -v

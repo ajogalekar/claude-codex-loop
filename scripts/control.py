@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
-"""Durable Claude/Codex loop ledger. Python 3.10+, macOS/Linux, no dependencies.
+"""Durable Claude/Codex loop ledger. Python 3.10+, macOS/Linux/Windows, no dependencies.
 
 This program never calls a model, runs project code, clicks a UI, or schedules work.
 It records and gates the supervising agent's actions. It is not a sandbox.
 """
 import argparse
+import contextlib
 import copy
-import fcntl
+import errno
+try:
+    import fcntl
+except ImportError:  # Windows: no fcntl; lock via msvcrt instead
+    fcntl = None
+    import msvcrt
 import fnmatch
 import hashlib
 import json
@@ -15,6 +21,7 @@ import os
 from pathlib import Path
 import secrets
 import shlex
+import stat
 import sys
 import tempfile
 import time
@@ -43,14 +50,41 @@ def atomic_json(path, value):
             out.flush()
             os.fsync(out.fileno())
         os.replace(name, path)
-        directory = os.open(path.parent, os.O_RDONLY)
-        try:
-            os.fsync(directory)
-        finally:
-            os.close(directory)
+        if os.name != 'nt':  # Windows cannot open a directory to fsync it
+            directory = os.open(path.parent, os.O_RDONLY)
+            try:
+                os.fsync(directory)
+            finally:
+                os.close(directory)
     finally:
         if os.path.exists(name):
             os.unlink(name)
+
+
+@contextlib.contextmanager
+def ledger_lock(path):
+    """Hold an exclusive, blocking, cross-process lock on path for the with-block."""
+    with path.open('a', encoding='utf-8') as lock:
+        if fcntl:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            yield
+            return
+        # msvcrt locks bytes from the current offset; pin byte 0 so every process
+        # contends for the same region. LK_LOCK gives up after ~10 s, so poll instead.
+        lock.seek(0)
+        while True:
+            try:
+                msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+                break
+            except OSError as error:  # contention is EACCES; anything else is fatal
+                if error.errno not in (errno.EACCES, errno.EDEADLOCK):
+                    raise
+                time.sleep(0.05)
+        try:
+            yield
+        finally:
+            lock.seek(0)
+            msvcrt.locking(lock.fileno(), msvcrt.LK_UNLCK, 1)
 
 
 def load(path):
@@ -77,11 +111,21 @@ def validate_config(c, root):
                 f'{key} must be positive and finite')
     require(c['lease_minutes'] <= 60, 'Lease must be at most 60 minutes; renew during long reviews')
     require(isinstance(c.get('watch'), list) and c['watch'] and
-            all(nonempty(x) and not x.startswith('/') and '..' not in Path(x).parts
+            all(nonempty(x) and not x.startswith(('/', '\\')) and not Path(x).drive
+                and '..' not in Path(x).parts
                 for x in c['watch']), 'watch must contain relative file glob patterns')
     c = copy.deepcopy(c)
     c['project'] = str(project)
+    if os.name == 'nt':  # scanned paths are POSIX-style; '\' can never match a Windows name
+        c['watch'] = [x.replace('\\', '/') for x in c['watch']]
     return c
+
+
+def is_link(path):
+    """Symlink, or a Windows junction (Path.is_symlink misses those before Python 3.12)."""
+    # stat.IO_REPARSE_TAG_* exist only on Windows builds of Python.
+    return path.is_symlink() or (os.name == 'nt' and
+        os.lstat(path).st_reparse_tag == stat.IO_REPARSE_TAG_MOUNT_POINT)
 
 
 def snapshot(s):
@@ -94,7 +138,7 @@ def snapshot(s):
         raise error
 
     for folder, dirs, names in os.walk(project, onerror=walk_error):
-        dirs[:] = sorted(d for d in dirs if d not in excluded and not (Path(folder) / d).is_symlink())
+        dirs[:] = sorted(d for d in dirs if d not in excluded and not is_link(Path(folder) / d))
         for name in sorted(names):
             path = Path(folder) / name
             relative = path.relative_to(project).as_posix()
@@ -102,7 +146,7 @@ def snapshot(s):
                        (pattern.startswith('**/') and fnmatch.fnmatchcase(relative, pattern[3:]))
                        for pattern in s['config']['watch']):
                 continue
-            require(not path.is_symlink(), f'Watched symlink needs explicit reconciliation: {relative}')
+            require(not is_link(path), f'Watched symlink needs explicit reconciliation: {relative}')
             require(len(files) < 10000, 'Too many watched files; narrow watch patterns')
             before = path.stat()
             require(before.st_size <= 50_000_000, f'Watched file too large: {relative}')
@@ -319,7 +363,11 @@ def summary(s):
 
 def heartbeat(root):
     script = Path(__file__).resolve()
-    status_command = shlex.join([sys.executable, str(script), '--root', str(root), 'status'])
+    args = [sys.executable, str(script), '--root', str(root), 'status']
+    if os.name == 'nt':  # Codex runs PowerShell here; POSIX quoting would be a string literal
+        status_command = '& ' + ' '.join("'" + a.replace("'", "''") + "'" for a in args)
+    else:
+        status_command = shlex.join(args)
     return (f'Use $claude-codex-loop for the existing authorized loop at {root}. '
             f'Read {script.parent.parent / "SKILL.md"} and {root / "CONTROL.md"}. '
             f'Run {status_command}. '
@@ -348,8 +396,7 @@ def main(argv=None):
             c = validate_config(load(a.config), root)
             root.mkdir(parents=True, exist_ok=True)
         require(root.is_dir(), 'Supervisor missing; run init first')
-        with (root / 'ledger.lock').open('a', encoding='utf-8') as lock:
-            fcntl.flock(lock, fcntl.LOCK_EX)
+        with ledger_lock(root / 'ledger.lock'):
             path = root / 'state.json'
             if a.action == 'init':
                 require(not path.exists(), 'Ledger already exists; init never resets it')
